@@ -123,16 +123,35 @@ def pdf_to_pdfa(src: Path, work: Path, stem: str, opts: dict):
     return out.read_bytes(), f"{stem}-pdfa.pdf", "application/pdf"
 
 
-COMPRESS = {"leve": "/printer", "recomendado": "/ebook", "forte": "/screen"}
+# level → (color/gray image DPI, mono image DPI, JPEG QFactor: lower = better quality)
+# Explicit settings instead of -dPDFSETTINGS presets: the /printer preset keeps 300 DPI and
+# often re-encodes scanned pages *larger* than the original, and /screen barely beat /ebook.
+COMPRESS = {
+    "leve": (220, 600, 0.15),
+    "recomendado": (150, 300, 0.40),
+    "forte": (100, 300, 0.76),
+}
 
 
 def compress(src: Path, work: Path, stem: str, opts: dict):
-    level = COMPRESS.get(opts.get("level", "recomendado"), "/ebook")
+    dpi, mono, q = COMPRESS.get(opts.get("level", "recomendado"), COMPRESS["recomendado"])
     out = work / "out.pdf"
+    jpeg = f"<< /QFactor {q} /Blend 1 /HSamples [2 1 1 2] /VSamples [2 1 1 2] >>"
     run([
-        "gs", "-sDEVICE=pdfwrite", "-dCompatibilityLevel=1.6", f"-dPDFSETTINGS={level}",
-        "-dNOPAUSE", "-dQUIET", "-dBATCH", "-dSAFER", "-dDetectDuplicateImages=true",
-        f"-sOutputFile={out}", str(src),
+        "gs", "-sDEVICE=pdfwrite", "-dCompatibilityLevel=1.6",
+        "-dNOPAUSE", "-dQUIET", "-dBATCH", "-dSAFER",
+        "-dDetectDuplicateImages=true", "-dCompressFonts=true", "-dSubsetFonts=true",
+        "-dDownsampleColorImages=true", "-dDownsampleGrayImages=true", "-dDownsampleMonoImages=true",
+        "-dColorImageDownsampleType=/Bicubic", "-dGrayImageDownsampleType=/Bicubic",
+        "-dMonoImageDownsampleType=/Subsample",
+        f"-dColorImageResolution={dpi}", f"-dGrayImageResolution={dpi}", f"-dMonoImageResolution={mono}",
+        "-dColorImageDownsampleThreshold=1.0", "-dGrayImageDownsampleThreshold=1.0",
+        "-dMonoImageDownsampleThreshold=1.0",
+        "-dAutoFilterColorImages=false", "-dAutoFilterGrayImages=false",
+        "-dColorImageFilter=/DCTEncode", "-dGrayImageFilter=/DCTEncode",
+        f"-sOutputFile={out}",
+        "-c", f"<< /ColorImageDict {jpeg} /GrayImageDict {jpeg} >> setdistillerparams",
+        "-f", str(src),
     ], work)
     data = out.read_bytes()
     if len(data) >= src.stat().st_size:
