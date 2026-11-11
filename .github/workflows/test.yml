@@ -1,0 +1,27 @@
+# This folder (converter/) is published as its own PUBLIC repository (AGPL-3.0 requirement).
+# GitHub Actions only TESTS: builds the container and converts real files with every tool.
+# Deployment is done by Cloudflare Workers Builds (Git integration, no API token stored here).
+name: Test converters
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build image
+        run: docker build -t conversordepdf-converter container
+      - name: Smoke test all converters
+        run: bash container/smoke-test.sh conversordepdf-converter
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Type-check Worker
+        run: npx tsc --noEmit
