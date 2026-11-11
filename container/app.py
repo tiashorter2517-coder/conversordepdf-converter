@@ -82,7 +82,8 @@ def run(cmd: list[str], cwd: Path) -> None:
     except subprocess.TimeoutExpired:
         raise UserFacing(504, "A conversão demorou demais. Tente um arquivo menor.")
     if p.returncode != 0:
-        print(f"[cmd failed] {cmd[0]} rc={p.returncode} {p.stderr[-800:]!r}", flush=True)
+        # Ghostscript reports most errors on stdout, so log the tail of both streams.
+        print(f"[cmd failed] {cmd[0]} rc={p.returncode} out={p.stdout[-600:]!r} err={p.stderr[-600:]!r}", flush=True)
         raise UserFacing(422, "Não foi possível converter este arquivo. Ele pode estar corrompido ou protegido por senha.")
 
 
@@ -114,7 +115,7 @@ def office_to_pdf(src: Path, work: Path, stem: str, opts: dict):
 def pdf_to_pdfa(src: Path, work: Path, stem: str, opts: dict):
     out = work / "out.pdf"
     run([
-        "gs", "-dPDFA=2", "-dBATCH", "-dNOPAUSE", "-dNOOUTERSAVE", "-dSAFER",
+        "gs", "-dPDFA=2", "-dBATCH", "-dNOPAUSE", "-dNOOUTERSAVE", "-dSAFER", "--permit-file-read=/opt/",
         "-sColorConversionStrategy=RGB", "-sProcessColorModel=DeviceRGB",
         "-dPDFACompatibilityPolicy=1", "-sDEVICE=pdfwrite",
         f"-sOutputFile={out}", "/opt/PDFA_def.ps", str(src),

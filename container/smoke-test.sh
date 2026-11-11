@@ -18,14 +18,16 @@ docker exec "$NAME" bash -c '
   printf "Nome,Valor\nA,1\nB,2\n" > sheet.csv
   soffice -env:UserInstallation=file:///tmp/lo-fx --headless --convert-to docx doc.txt >/dev/null
   soffice -env:UserInstallation=file:///tmp/lo-fx --headless --convert-to xlsx sheet.csv >/dev/null
-  soffice -env:UserInstallation=file:///tmp/lo-fx --headless --convert-to pptx doc.txt >/dev/null || \
-    soffice -env:UserInstallation=file:///tmp/lo-fx --headless --convert-to "pptx:Impress MS PowerPoint 2007 XML" doc.txt >/dev/null
+  /opt/venv/bin/python -c "
+from pptx import Presentation
+p = Presentation(); s = p.slides.add_slide(p.slide_layouts[1])
+s.shapes.title.text = \"Apresentação de teste\"; s.placeholders[1].text = \"Linha com acentuação\"
+p.save(\"doc.pptx\")"
   soffice -env:UserInstallation=file:///tmp/lo-fx --headless --convert-to pdf doc.txt >/dev/null
   soffice -env:UserInstallation=file:///tmp/lo-fx --headless --convert-to pdf sheet.csv >/dev/null
   ebook-convert doc.txt book.epub >/dev/null
   ls -la'
-for f in doc.docx sheet.xlsx doc.pdf sheet.pdf book.epub; do docker cp "$NAME:/tmp/fx/$f" "$F/$f"; done
-docker cp "$NAME:/tmp/fx/doc.pptx" "$F/doc.pptx" 2>/dev/null || true
+for f in doc.docx sheet.xlsx doc.pptx doc.pdf sheet.pdf book.epub; do docker cp "$NAME:/tmp/fx/$f" "$F/$f"; done
 
 fail=0
 check() { # tool input expected-magic
@@ -41,7 +43,7 @@ check() { # tool input expected-magic
 }
 check word-para-pdf doc.docx '%PDF'
 check excel-para-pdf sheet.xlsx '%PDF'
-[ -f "$F/doc.pptx" ] && check powerpoint-para-pdf doc.pptx '%PDF'
+check powerpoint-para-pdf doc.pptx '%PDF'
 check pdf-para-pdfa doc.pdf '%PDF'
 check comprimir-pdf doc.pdf '%PDF'
 check pdf-para-excel sheet.pdf 'PK'
