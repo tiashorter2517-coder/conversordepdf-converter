@@ -1,0 +1,33 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "conversordepdf-converter",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-11-01",
+  "workers_dev": false,
+  // Same origin as the site: the Worker answers only /api/* on the main domain.
+  "routes": [{ "pattern": "conversordepdf.pro/api/*", "zone_name": "conversordepdf.pro" }],
+  "vars": {
+    "POOL_SIZE": "2",
+    "SITE_ORIGIN": "https://conversordepdf.pro"
+  },
+  "containers": [
+    {
+      "class_name": "Converter",
+      "scheduling_policy": "durable_object",
+      // Instance count is set by POOL_SIZE (one Durable Object per container).
+      // Placement is chosen by Cloudflare (region constraints are not supported for DO-managed containers).
+      "images": { "base": { "dockerfile": "./container/Dockerfile" } }
+    }
+  ],
+  "durable_objects": {
+    "bindings": [{ "name": "CONVERTER", "class_name": "Converter" }]
+  },
+  "exports": {
+    "Converter": { "type": "durable-object", "storage": "sqlite" }
+  },
+  // 10 conversions per minute per IP.
+  "ratelimits": [
+    { "name": "RATE_LIMITER", "namespace_id": "1001", "simple": { "limit": 10, "period": 60 } }
+  ],
+  "observability": { "enabled": true }
+}

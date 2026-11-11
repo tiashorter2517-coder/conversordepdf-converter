@@ -1,0 +1,9 @@
+fastapi==0.162.4
+uvicorn==0.54.0
+python-multipart==0.0.33
+pdfplumber==0.11.10
+openpyxl==3.1.5
+python-pptx==1.0.2
+# PDF → Word. PyMuPDF is AGPL-3.0: this converter's source code must stay public (see LICENSE).
+pdf2docx==0.5.13
+PyMuPDF==1.28.2
